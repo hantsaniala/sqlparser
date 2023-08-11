@@ -3,6 +3,7 @@ package sqlparser
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/hantsaniala/sqlparser/query"
@@ -39,6 +40,13 @@ type step int
 
 const (
 	stepType step = iota
+	stepCreateTable
+	stepCreateFieldsOpeningParens
+	stepCreateFields
+	stepCreateFieldsCommaOrClosingParens
+	stepCreateValuesRWord
+	stepCreateFieldsType
+	stepCreateFieldsLength
 	stepSelectField
 	stepSelectFrom
 	stepSelectComma
@@ -86,6 +94,7 @@ func (p *parser) parse() (query.Query, error) {
 }
 
 func (p *parser) doParse() (query.Query, error) {
+	lastField := query.Field{}
 	for {
 		if p.i >= len(p.sql) {
 			return p.query, p.err
@@ -110,6 +119,10 @@ func (p *parser) doParse() (query.Query, error) {
 				p.query.Type = query.Delete
 				p.pop()
 				p.step = stepDeleteFromTable
+			case "CREATE TABLE":
+				p.query.Type = query.Create
+				p.pop()
+				p.step = stepCreateTable
 			default:
 				return p.query, fmt.Errorf("invalid query type")
 			}
@@ -161,6 +174,14 @@ func (p *parser) doParse() (query.Query, error) {
 			p.query.TableName = tableName
 			p.pop()
 			p.step = stepWhere
+		case stepCreateTable:
+			tableName := p.peek()
+			if len(tableName) == 0 {
+				return p.query, fmt.Errorf("at CREATE TABLE: expected table name")
+			}
+			p.query.TableName = tableName
+			p.pop()
+			p.step = stepCreateFieldsOpeningParens
 		case stepInsertTable:
 			tableName := p.peek()
 			if len(tableName) == 0 {
@@ -289,6 +310,13 @@ func (p *parser) doParse() (query.Query, error) {
 			}
 			p.pop()
 			p.step = stepWhereField
+		case stepCreateFieldsOpeningParens:
+			openingParens := p.peek()
+			if len(openingParens) != 1 || openingParens != "(" {
+				return p.query, fmt.Errorf("at CREATE TABLE: expected opening parens")
+			}
+			p.pop()
+			p.step = stepCreateFields
 		case stepInsertFieldsOpeningParens:
 			openingParens := p.peek()
 			if len(openingParens) != 1 || openingParens != "(" {
@@ -296,6 +324,14 @@ func (p *parser) doParse() (query.Query, error) {
 			}
 			p.pop()
 			p.step = stepInsertFields
+		case stepCreateFields:
+			identifier := p.peek()
+			if !isIdentifier(identifier) {
+				return p.query, fmt.Errorf("at CREATE TABLE: expected at least one field to create")
+			}
+			lastField.Name = identifier
+			p.pop()
+			p.step = stepCreateFieldsType
 		case stepInsertFields:
 			identifier := p.peek()
 			if !isIdentifier(identifier) {
@@ -304,6 +340,48 @@ func (p *parser) doParse() (query.Query, error) {
 			p.query.Fields = append(p.query.Fields, identifier)
 			p.pop()
 			p.step = stepInsertFieldsCommaOrClosingParens
+		case stepCreateFieldsType:
+			fieldType := p.peek()
+			switch fieldType {
+			case "varchar":
+				lastField.Type = query.Vachar
+			// TODO: Add other type
+			default:
+				return p.query, fmt.Errorf("at %s: unknown type \"%s\"", lastField.Name, fieldType)
+			}
+			p.pop()
+			p.step = stepCreateFieldsCommaOrClosingParens
+		case stepCreateFieldsCommaOrClosingParens:
+			commaOrOpeningOrClosingParens := p.peek()
+			if commaOrOpeningOrClosingParens != "," && commaOrOpeningOrClosingParens != "(" && commaOrOpeningOrClosingParens != ")" {
+				return p.query, fmt.Errorf("at CREATE TABLE: expected comma, opening parens or closing parens")
+			}
+
+			p.pop()
+			if commaOrOpeningOrClosingParens == ")" {
+				p.step = stepCreateFieldsCommaOrClosingParens
+				appendCreatField(p, &lastField)
+				continue
+			}
+			if commaOrOpeningOrClosingParens == "," {
+				p.step = stepCreateFields
+				appendCreatField(p, &lastField)
+				continue
+			}
+
+			if commaOrOpeningOrClosingParens == "(" {
+				p.step = stepCreateFieldsLength
+				continue
+			}
+			p.step = stepCreateFields
+		case stepCreateFieldsLength:
+			currLenght, err := strconv.Atoi(p.peek())
+			if err != nil {
+				return p.query, fmt.Errorf("at CREATE TABLE: %s", err)
+			}
+			lastField.Length = currLenght
+			p.pop()
+			p.step = stepCreateFieldsCommaOrClosingParens
 		case stepInsertFieldsCommaOrClosingParens:
 			commaOrClosingParens := p.peek()
 			if commaOrClosingParens != "," && commaOrClosingParens != ")" {
@@ -361,6 +439,13 @@ func (p *parser) doParse() (query.Query, error) {
 			p.pop()
 			p.step = stepInsertValuesOpeningParens
 		}
+	}
+}
+
+func appendCreatField(p *parser, lastField *query.Field) {
+	if lastField.Name != "" {
+		p.query.CreateFields = append(p.query.CreateFields, *lastField)
+		*lastField = query.Field{}
 	}
 }
 

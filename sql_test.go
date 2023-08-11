@@ -443,10 +443,10 @@ func TestSQL(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			actual, err := ParseMany([]string{tc.SQL})
 			if tc.Err != nil && err == nil {
-				t.Errorf("Error should have been %v", tc.Err)
+				t.Errorf("Error should have been \"%v\"", tc.Err)
 			}
 			if tc.Err == nil && err != nil {
-				t.Errorf("Error should have been nil but was %v", err)
+				t.Errorf("Error should have been nil but was \"%v\"", err)
 			}
 			if tc.Err != nil && err != nil {
 				require.Equal(t, tc.Err, err, "Unexpected error")

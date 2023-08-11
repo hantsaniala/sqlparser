@@ -382,8 +382,8 @@ func (p *parser) popWhitespace() {
 }
 
 var reservedWords = []string{
-	"(", ")", ">=", "<=", "!=", ",", "=", ">", "<", "SELECT", "INSERT INTO", "VALUES", "UPDATE", "DELETE FROM",
-	"WHERE", "FROM", "SET", "AS",
+	"(", ")", ">=", "<=", "!=", ",", "=", ">", "<", "CREATE TABLE", "SELECT", "INSERT INTO", "VALUES", "UPDATE", "DELETE FROM",
+	"WHERE", "FROM", "SET", "AS", "NOT NULL", "UNIQUE",
 }
 
 func (p *parser) peekWithLength() (string, int) {

@@ -436,6 +436,20 @@ func TestSQL(t *testing.T) {
 			},
 			Err: nil,
 		},
+		{
+			Name: "CREATE works",
+			SQL:  "CREATE TABLE a (b varchar(200), c varchar(100), d varchar(50))",
+			Expected: query.Query{
+				Type:      query.Create,
+				TableName: "a",
+				CreateFields: []query.Field{
+					{Name: "b", Type: 2, Length: 200},
+					{Name: "c", Type: 2, Length: 100},
+					{Name: "d", Type: 2, Length: 50},
+				},
+			},
+			Err: nil,
+		},
 	}
 
 	output := output{Types: query.TypeString, Operators: query.OperatorString}

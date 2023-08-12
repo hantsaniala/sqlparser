@@ -450,6 +450,49 @@ func TestSQL(t *testing.T) {
 			},
 			Err: nil,
 		},
+
+		{
+			Name: "CREATE NOT NULL works",
+			SQL:  "CREATE TABLE a (b varchar(200) NOT NULL, c varchar(100), d varchar(50) NOT NULL)",
+			Expected: query.Query{
+				Type:      query.Create,
+				TableName: "a",
+				CreateFields: []query.Field{
+					{Name: "b", Type: 2, Length: 200, NotNull: true},
+					{Name: "c", Type: 2, Length: 100},
+					{Name: "d", Type: 2, Length: 50, NotNull: true},
+				},
+			},
+			Err: nil,
+		},
+		{
+			Name: "CREATE UNIQUE works",
+			SQL:  "CREATE TABLE a (b varchar(200) UNIQUE, c varchar(100), d varchar(50) NOT NULL)",
+			Expected: query.Query{
+				Type:      query.Create,
+				TableName: "a",
+				CreateFields: []query.Field{
+					{Name: "b", Type: 2, Length: 200, Unique: true},
+					{Name: "c", Type: 2, Length: 100},
+					{Name: "d", Type: 2, Length: 50, NotNull: true},
+				},
+			},
+			Err: nil,
+		},
+		{
+			Name: "CREATE UNIQUE NOT NULL works",
+			SQL:  "CREATE TABLE a (b varchar(200) NOT NULL UNIQUE, c varchar(100), d varchar(50) NOT NULL)",
+			Expected: query.Query{
+				Type:      query.Create,
+				TableName: "a",
+				CreateFields: []query.Field{
+					{Name: "b", Type: 2, Length: 200, Unique: true, NotNull: true},
+					{Name: "c", Type: 2, Length: 100},
+					{Name: "d", Type: 2, Length: 50, NotNull: true},
+				},
+			},
+			Err: nil,
+		},
 	}
 
 	output := output{Types: query.TypeString, Operators: query.OperatorString}

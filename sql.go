@@ -47,6 +47,7 @@ const (
 	stepCreateValuesRWord
 	stepCreateFieldsType
 	stepCreateFieldsLength
+	stepCreateFielsNotNullOrUnique
 	stepSelectField
 	stepSelectFrom
 	stepSelectComma
@@ -359,8 +360,7 @@ func (p *parser) doParse() (query.Query, error) {
 
 			p.pop()
 			if commaOrOpeningOrClosingParens == ")" {
-				p.step = stepCreateFieldsCommaOrClosingParens
-				appendCreatField(p, &lastField)
+				p.step = stepCreateFielsNotNullOrUnique
 				continue
 			}
 			if commaOrOpeningOrClosingParens == "," {
@@ -374,6 +374,25 @@ func (p *parser) doParse() (query.Query, error) {
 				continue
 			}
 			p.step = stepCreateFields
+		case stepCreateFielsNotNullOrUnique:
+			notNullOrUnique := strings.ToUpper(p.peek())
+			if notNullOrUnique != "NOT NULL" && notNullOrUnique != "UNIQUE" {
+				p.step = stepCreateFieldsCommaOrClosingParens
+				appendCreatField(p, &lastField)
+				continue
+			}
+			p.pop()
+			if notNullOrUnique == "NOT NULL" {
+				lastField.NotNull = true
+				p.step = stepCreateFielsNotNullOrUnique
+				continue
+			}
+			if notNullOrUnique == "UNIQUE" {
+				lastField.Unique = true
+				p.step = stepCreateFielsNotNullOrUnique
+				continue
+			}
+			p.step = stepCreateFieldsCommaOrClosingParens
 		case stepCreateFieldsLength:
 			currLenght, err := strconv.Atoi(p.peek())
 			if err != nil {
